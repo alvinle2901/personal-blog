@@ -1,0 +1,90 @@
+---
+import { getCollection } from 'astro:content';
+import { Icon } from "astro-icon/components";
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '@components/Hero.astro';
+import FeaturedArticleList from '@components/FeaturedArticleList.astro'
+import Newsletter from '@components/Newsletter.astro';
+import TopicList from '@components/TopicList.astro';
+
+import filterPublishedPosts from '../utilities/filterPublishedPosts';
+
+const posts = filterPublishedPosts(await getCollection('blog'));
+const topics = [...new Set(posts.flatMap((post) => post.data.topics))];
+const featuredPosts = posts.filter(post => post.data.featured === true).slice(0, 5)
+---
+
+<BaseLayout>
+  <main class="flow">
+    <Hero />
+    <div class="article-list wrapper sidebar" data-direction="rtl">
+      <div class="article-list__featured">
+        <h2>Featured</h2>
+        <FeaturedArticleList posts={featuredPosts} />
+        <div class="article-list__view-more"><a href="/writing">view all writing <Icon name="arrow-right" /></a></div>
+      </div>
+      <div class="article-list__topics">
+        <h2>Topics</h2>
+        <TopicList topics={topics} />
+      </div>
+    </div>
+    <Newsletter />
+  </main>
+</BaseLayout>
+
+<style>
+  main {
+    --flow-space: var(--space-xl);
+  }
+
+  .article-list {
+    --gutter: var(--space-m);
+  }
+
+  h2 {
+    text-transform: uppercase;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    display: flex;
+    flex-direction: column;
+    margin-top: 0;
+    margin-bottom: var(--space-l);
+  }
+
+  a {
+    font-size: var(--font-step-0);
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--color-text);
+  }
+
+  a:hover {
+    color: var(--color-hover-text);
+  }
+
+  .article-list__view-more {
+    text-align: right;
+  }
+
+  .article-list__view-more > a {
+    display: inline-flex;
+    justify-content: flex-end;
+    flex-direction: row;
+    align-items: center;
+    text-transform: uppercase;
+    gap: var(--space-2xs);
+    letter-spacing: -0.03em;
+  }
+
+  [data-icon="arrow-right"] {
+    transform: translateY(0.1cap);
+    width: 1.5rem;
+    height: 1.5rem;
+    transition: transform var(--transition-bounce);
+  }
+
+  .article-list__view-more:hover [data-icon="arrow-right"] {
+    transform: translateY(0.1cap) translateX(0.2rem);
+  }
+</style>

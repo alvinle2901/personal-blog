@@ -1,0 +1,14 @@
+---
+const { date, class: className } = Astro.props;
+import { formatInTimeZone } from 'date-fns-tz'
+
+const formatDate = (date: Date) => {
+	return formatInTimeZone(date, 'Etc/UTC', 'MMM dd, yyyy');
+}
+---
+
+<time datetime={date.toISOString()} class:list={[className]}>
+	{
+		formatDate(date)
+	}
+</time>
