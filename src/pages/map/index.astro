@@ -1,0 +1,71 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+
+
+const visitedCountries = [
+  "Germany",
+  "Finland",
+  "Netherlands",
+  "Vietnam",
+];
+---
+
+<style>
+  .map-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+  }
+
+  .country {
+    fill: #e0e0e0;
+    stroke: #999;
+    stroke-width: 0.5;
+    transition: fill 0.2s ease;
+  }
+
+  .country.visited {
+    fill: #4caf50;
+    cursor: pointer;
+  }
+
+  .country.visited:hover {
+    fill: #66bb6a;
+  }
+</style>
+
+<BaseLayout>
+  <div class="map-container">
+    <object
+      id="worldMap"
+      type="image/svg+xml"
+      data="/world.svg">
+    </object>
+  </div>
+</BaseLayout>
+
+
+<script is:inline>
+  const visited = new Set(<?= JSON.stringify(visitedCountries) ?>);
+
+  const mapObject = document.getElementById("worldMap");
+
+  mapObject.addEventListener("load", () => {
+    const svg = mapObject.contentDocument;
+
+    svg.querySelectorAll("path").forEach(path => {
+      const countryName = path.id;
+
+      path.classList.add("country");
+
+      if (visited.has(countryName)) {
+        path.classList.add("visited");
+      }
+    });
+  });
+</script>
