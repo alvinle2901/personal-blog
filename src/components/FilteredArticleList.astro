@@ -29,14 +29,33 @@ const allArticles = publishedPosts.map(post => ({
   date: formatDate(post.data.pubDate),
   imageSrc: post.data.heroImage || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2070&auto=format&fit=crop"
 }));
----
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,300;600&display=swap" rel="stylesheet">
+// Get page parameters
+const url = new URL(Astro.request.url);
+const categoryParam = url.searchParams.get('category') || "";
+const pageParam = parseInt(url.searchParams.get('page') || "1");
+const itemsPerPage = 15;
+
+// Filter and paginate articles
+let filteredArticles = allArticles;
+if (categoryParam) {
+  filteredArticles = allArticles.filter(article => article.category === categoryParam);
+}
+
+// Sort articles (newest first by default)
+filteredArticles.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+// Paginate
+const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
+const startIndex = (pageParam - 1) * itemsPerPage;
+const endIndex = startIndex + itemsPerPage;
+const paginatedArticles = filteredArticles.slice(startIndex, endIndex);
+---
 
 <!-- Client-side interactive component -->
 <div class="filtered-article-list" data-articles={JSON.stringify(allArticles)} data-categories={JSON.stringify(categories)}>
+  <div class="wrapper">
+
   <!-- Filter Bar -->
   <div class="filter-bar-container">
     <div class="category-list">
@@ -52,13 +71,6 @@ const allArticles = publishedPosts.map(post => ({
     </div>
 
     <div class="tools">
-      <button class="icon-btn" aria-label="Search">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      </button>
-
       <div class="custom-dropdown">
         <button type="button" class="dropdown-trigger">
           <span class="dropdown-text">Newest first</span>
@@ -77,7 +89,7 @@ const allArticles = publishedPosts.map(post => ({
   <!-- Article List -->
   <section class="articles-section">
     <div class="grid-container" id="article-grid">
-      {allArticles.map(article => (
+      {paginatedArticles.map(article => (
         <NewArticleCard
           category={article.category}
           title={article.title}
@@ -86,7 +98,38 @@ const allArticles = publishedPosts.map(post => ({
         />
       ))}
     </div>
+
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="pagination-container">
+        <div class="pagination">
+          {pageParam > 1 && (
+            <a
+              href={`?${categoryParam ? `category=${categoryParam}&` : ''}page=${pageParam - 1}`}
+              class="pagination-btn prev"
+            >
+              ← Previous
+            </a>
+          )}
+
+          <span class="pagination-info">
+            Page {pageParam} of {totalPages}
+          </span>
+
+          {pageParam < totalPages && (
+            <a
+              href={`?${categoryParam ? `category=${categoryParam}&` : ''}page=${pageParam + 1}`}
+              class="pagination-btn next"
+            >
+              Next →
+            </a>
+          )}
+        </div>
+      </div>
+    )}
   </section>
+
+  </div>
 </div>
 
 <script>
@@ -95,7 +138,7 @@ const allArticles = publishedPosts.map(post => ({
     const container = document.querySelector('.filtered-article-list') as HTMLElement;
     if (!container) return;
 
-    const articles = JSON.parse((container as HTMLElement & { dataset: any }).dataset.articles);
+    const articles = JSON.parse((container as any).dataset.articles);
     const grid = container.querySelector('#article-grid') as HTMLElement;
     const filterButtons = container.querySelectorAll('.filter-btn');
     const dropdownTrigger = container.querySelector('.dropdown-trigger') as HTMLElement;
@@ -178,14 +221,14 @@ const allArticles = publishedPosts.map(post => ({
       });
 
       const articleHTML = sortedArticles.map(article => `
-        <article class="article-card">
-          <div class="image-wrapper">
-            <img src="${article.imageSrc}" alt="${article.title}" />
+        <article class="article-card" style="display: flex; flex-direction: column; gap: 1.5rem; color: var(--color-text);">
+          <div class="image-wrapper" style="width: 100%; aspect-ratio: 1/1; overflow: hidden; border-radius: 24px;">
+            <img src="${article.imageSrc}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;" />
           </div>
-          <div class="content">
-            <span class="category-tag">${article.category}</span>
-            <h3>${article.title}</h3>
-            <time>${article.date}</time>
+          <div class="content" style="display: flex; flex-direction: column; align-items: flex-start;">
+            <span class="category-tag" style="display: inline-block; background-color: var(--color-tag); padding: 0.5rem 1rem; border-radius: 50px; margin-bottom: 1rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-text);">${article.category}</span>
+            <h3 style="font-size: 1.75rem; font-weight: 600; line-height: 1.2; margin: 0 0 1rem 0; letter-spacing: -0.02em;">${article.title}</h3>
+            <time style="font-size: 0.9rem; opacity: 0.7;">${article.date}</time>
           </div>
         </article>
       `).join('');
@@ -208,6 +251,15 @@ const allArticles = publishedPosts.map(post => ({
 </script>
 
 <style>
+  .filtered-article-list {
+    background: var(--color-hero-bg);
+    max-width: var(--wrapper-max-width, 1300px);
+    padding: var(--space-l);
+    min-height: 100vh;
+    margin-inline: auto;
+    width: 100%;
+    border-radius: var(--space-m);
+  }
 
   .filter-bar-container {
     display: flex;
@@ -215,7 +267,6 @@ const allArticles = publishedPosts.map(post => ({
     align-items: center;
     gap: 2rem;
     padding: 1rem 0;
-    font-family: 'DM Sans', sans-serif;
     color: var(--color-text);
     max-width: 1200px;
     margin: 0 auto;
@@ -227,8 +278,6 @@ const allArticles = publishedPosts.map(post => ({
     gap: 0.75rem;
     overflow-x: auto;
     white-space: nowrap;
-    padding-bottom: 0.5rem;
-
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
@@ -253,7 +302,7 @@ const allArticles = publishedPosts.map(post => ({
   }
 
   .filter-btn.active {
-    background-color: var(--color-hover-text);
+    background-color: var(--color-tag);
     opacity: 1;
     border-color: var(--color-text);
     font-weight: 500;
@@ -295,7 +344,7 @@ const allArticles = publishedPosts.map(post => ({
   }
 
   .sort-btn {
-    height: 44px;
+    /* height: 44px; */
     padding: 0 1.25rem;
     border-radius: 14px;
     gap: 2rem;
@@ -315,7 +364,6 @@ const allArticles = publishedPosts.map(post => ({
     cursor: pointer;
     padding: 0.5rem 1rem;
     font-size: 0.95rem;
-    font-family: 'DM Sans', sans-serif;
     opacity: 0.7;
     transition: all 0.2s ease;
     min-width: 140px;
@@ -409,9 +457,9 @@ const allArticles = publishedPosts.map(post => ({
     }
   }
 
-  /* Article List Styles */
   .articles-section {
-    padding: 4rem 2rem;
+    padding: 2rem;
+    /* background: var(--color-bg); */
   }
 
   .grid-container {
@@ -425,5 +473,53 @@ const allArticles = publishedPosts.map(post => ({
       grid-template-columns: repeat(3, 1fr);
     }
   }
-</style>
 
+  /* Pagination Styles */
+  .pagination-container {
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.5rem 2rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-text);
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .pagination-info {
+    color: var(--color-text);
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .pagination-btn {
+    color: var(--color-text);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-text);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .pagination-btn:hover {
+    background-color: var(--color-hover-text);
+    color: var(--color-bg);
+  }
+
+  .pagination-btn.prev {
+    border-radius: 20px 8px 8px 20px;
+  }
+
+  .pagination-btn.next {
+    border-radius: 8px 20px 20px 8px;
+  }
+</style>

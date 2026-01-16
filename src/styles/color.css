@@ -23,6 +23,7 @@
   --color-light-text-opacity: hsla(0deg, 0%, 98%, 20%);
   --color-overlay-light: #bbb791;
   --color-overlay-dark: #4a695e;
+  --color-tag-norm: #D3DCDD;
 
   --color-text: light-dark(var(--color-dark-text), var(--color-light-text));
   --color-bg: light-dark(var(--color-light-bg), var(--color-dark-bg));
@@ -33,4 +34,5 @@
   --color-hero-text: light-dark(var(--color-gray-3), var(--color-gray-0));
   --color-hero-higlight: light-dark(var(--color-green-1), var(--color-logo-dark));
   --color-overlay-bg: light-dark(var(--color-overlay-light), var(--color-overlay-dark));
+  --color-tag: light-dark(var(--color-tag-norm), var(--color-light-accent));
 }
