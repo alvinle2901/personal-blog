@@ -10,17 +10,20 @@ import TopicList from '@components/TopicList.astro';
 
 import filterPublishedPosts from '../utilities/filterPublishedPosts';
 import Hero1 from '../components/Hero1.astro';
+import FilteredArticleList from '../components/FilteredArticleList.astro';
+import FeaturedPostSlider from '../components/FeaturedPostSlider.astro';
 
 const posts = filterPublishedPosts(await getCollection('blog'));
 const topics = [...new Set(posts.flatMap((post) => post.data.topics))];
-const featuredPosts = posts.filter(post => post.data.featured === true).slice(0, 5)
+const featuredPosts = posts.filter(post => post.data.featured === true).slice(0, 5);
 ---
 
 <BaseLayout>
   <main class="flow">
     <Hero1 />
+    <FeaturedPostSlider />
     <!-- <Hero /> -->
-    <div class="article-list wrapper sidebar" data-direction="rtl">
+    <!-- <div class="article-list wrapper sidebar" data-direction="rtl">
       <div class="article-list__featured">
         <h2>Featured</h2>
         <FeaturedArticleList posts={featuredPosts} />
@@ -30,6 +33,9 @@ const featuredPosts = posts.filter(post => post.data.featured === true).slice(0,
         <h2>Topics</h2>
         <TopicList topics={topics} />
       </div>
+    </div> -->
+    <div class="wrapper">
+      <FilteredArticleList />
     </div>
     <Newsletter />
   </main>
@@ -90,3 +96,5 @@ const featuredPosts = posts.filter(post => post.data.featured === true).slice(0,
     transform: translateY(0.1cap) translateX(0.2rem);
   }
 </style>
+
+

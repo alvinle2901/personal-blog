@@ -1,0 +1,429 @@
+---
+// Server-side data fetching
+import { getCollection } from 'astro:content';
+import NewArticleCard from './NewArticleCard.astro';
+import filterPublishedPosts from '../utilities/filterPublishedPosts';
+import { formatInTimeZone } from 'date-fns-tz';
+
+// Get all blog posts and filter for published ones
+const allPosts = await getCollection('blog');
+const publishedPosts = filterPublishedPosts(allPosts);
+
+// Extract unique categories from published posts
+const availableCategories = Array.from(new Set(
+  publishedPosts.flatMap(post => post.data.topics)
+)).sort();
+
+// Add "All posts" as the first option
+const categories = ["All posts", ...availableCategories];
+
+// Format date helper function
+const formatDate = (date: Date) => {
+  return formatInTimeZone(date, 'Etc/UTC', 'MMMM dd, yyyy');
+};
+
+// Map posts to article format
+const allArticles = publishedPosts.map(post => ({
+  category: post.data.topics.length > 0 ? post.data.topics[0] : 'Blog',
+  title: post.data.title,
+  date: formatDate(post.data.pubDate),
+  imageSrc: post.data.heroImage || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2070&auto=format&fit=crop"
+}));
+---
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,300;600&display=swap" rel="stylesheet">
+
+<!-- Client-side interactive component -->
+<div class="filtered-article-list" data-articles={JSON.stringify(allArticles)} data-categories={JSON.stringify(categories)}>
+  <!-- Filter Bar -->
+  <div class="filter-bar-container">
+    <div class="category-list">
+      {categories.map((cat) => (
+        <button
+          class="filter-btn"
+          data-category={cat}
+          type="button"
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+
+    <div class="tools">
+      <button class="icon-btn" aria-label="Search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
+
+      <div class="custom-dropdown">
+        <button type="button" class="dropdown-trigger">
+          <span class="dropdown-text">Newest first</span>
+          <svg class="dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="dropdown-menu">
+          <div class="dropdown-item" data-value="desc">Newest first</div>
+          <div class="dropdown-item" data-value="asc">Oldest first</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Article List -->
+  <section class="articles-section">
+    <div class="grid-container" id="article-grid">
+      {allArticles.map(article => (
+        <NewArticleCard
+          category={article.category}
+          title={article.title}
+          date={article.date}
+          imageSrc={article.imageSrc}
+        />
+      ))}
+    </div>
+  </section>
+</div>
+
+<script>
+  // Initialize filter functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector('.filtered-article-list') as HTMLElement;
+    if (!container) return;
+
+    const articles = JSON.parse((container as HTMLElement & { dataset: any }).dataset.articles);
+    const grid = container.querySelector('#article-grid') as HTMLElement;
+    const filterButtons = container.querySelectorAll('.filter-btn');
+    const dropdownTrigger = container.querySelector('.dropdown-trigger') as HTMLElement;
+    const dropdownText = container.querySelector('.dropdown-text') as HTMLElement;
+    const dropdownMenu = container.querySelector('.dropdown-menu') as HTMLElement;
+    const dropdownItems = container.querySelectorAll('.dropdown-item');
+    let activeCategory = "All posts";
+    let sortOrder: 'asc' | 'desc' = 'desc'; // Default: newest first
+
+    // Initialize button event listeners
+    filterButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const category = target.dataset.category || "All posts";
+        filterByCategory(category);
+      });
+    });
+
+    // Initialize custom dropdown
+    dropdownTrigger.addEventListener('click', () => {
+      dropdownMenu.classList.toggle('open');
+    });
+
+    dropdownItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const value = target.dataset.value as 'asc' | 'desc';
+        const text = target.textContent || '';
+        sortOrder = value;
+        dropdownText.textContent = text;
+        dropdownMenu.classList.remove('open');
+        handleSortChange();
+      });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const target = e.target as Node;
+      if (!dropdownTrigger.contains(target) && !dropdownMenu.contains(target)) {
+        dropdownMenu.classList.remove('open');
+      }
+    });
+
+    // Set initial dropdown text and active state
+    dropdownText.textContent = sortOrder === 'desc' ? 'Newest first' : 'Oldest first';
+    updateActiveButton();
+
+    function filterByCategory(category) {
+      activeCategory = category;
+
+      let filteredArticles;
+      if (category === "All posts") {
+        filteredArticles = [...articles];
+      } else {
+        filteredArticles = articles.filter(article => article.category === category);
+      }
+
+      renderArticles(filteredArticles);
+      updateActiveButton();
+    }
+
+    function handleSortChange() {
+      // Re-render with current filter and new sort order
+      let articlesToSort;
+      if (activeCategory === "All posts") {
+        articlesToSort = [...articles];
+      } else {
+        articlesToSort = articles.filter(article => article.category === activeCategory);
+      }
+
+      renderArticles(articlesToSort);
+    }
+
+    function renderArticles(articlesToRender) {
+      // Sort articles by date
+      const sortedArticles = [...articlesToRender].sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortOrder === 'desc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+      });
+
+      const articleHTML = sortedArticles.map(article => `
+        <article class="article-card">
+          <div class="image-wrapper">
+            <img src="${article.imageSrc}" alt="${article.title}" />
+          </div>
+          <div class="content">
+            <span class="category-tag">${article.category}</span>
+            <h3>${article.title}</h3>
+            <time>${article.date}</time>
+          </div>
+        </article>
+      `).join('');
+
+      grid.innerHTML = articleHTML;
+    }
+
+    function updateActiveButton() {
+      filterButtons.forEach(button => {
+        if (button.dataset.category === activeCategory) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+    }
+
+
+  });
+</script>
+
+<style>
+
+  .filter-bar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 0;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--color-text);
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .category-list {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 0.5rem;
+
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .category-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--color-text);
+    border-radius: 50px;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    opacity: 0.7;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .filter-btn.active {
+    background-color: var(--color-hover-text);
+    opacity: 1;
+    border-color: var(--color-text);
+    font-weight: 500;
+  }
+
+  .filter-btn:hover {
+    opacity: 1;
+    border-color: var(--color-text);
+  }
+
+  .tools {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .icon-btn, .sort-btn {
+    background: transparent;
+    border: 1px solid var(--color-text);
+    border-radius: 12px;
+    color: var(--color-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    opacity: 0.7;
+  }
+
+  .icon-btn:hover, .sort-btn:hover {
+    opacity: 1;
+    background-color: rgba(62, 48, 41, 0.05);
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .sort-btn {
+    height: 44px;
+    padding: 0 1.25rem;
+    border-radius: 14px;
+    gap: 2rem;
+    font-size: 0.95rem;
+  }
+
+  /* Custom Dropdown Styles */
+  .custom-dropdown {
+    position: relative;
+  }
+
+  .dropdown-trigger {
+    background: transparent;
+    border: 1px solid var(--color-text);
+    border-radius: 12px;
+    color: var(--color-text);
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    font-family: 'DM Sans', sans-serif;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .dropdown-trigger:hover {
+    opacity: 1;
+    background-color: rgba(62, 48, 41, 0.05);
+  }
+
+  .dropdown-trigger:focus {
+    outline: none;
+    border-color: var(--color-text);
+    opacity: 1;
+  }
+
+  .dropdown-text {
+    flex: 1;
+    text-align: left;
+  }
+
+  .dropdown-arrow {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+  }
+
+  .custom-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-bg);
+    border: 1px solid var(--color-text);
+    border-radius: 12px;
+    margin-top: 0.25rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.95rem;
+    color: var(--color-text);
+  }
+
+  .dropdown-item:hover {
+    background-color: var(--color-hover-text);
+  }
+
+  .dropdown-item:first-child {
+    border-radius: 12px 12px 0 0;
+  }
+
+  .dropdown-item:last-child {
+    border-radius: 0 0 12px 12px;
+  }
+
+  .dropdown-item:only-child {
+    border-radius: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .filter-bar-container {
+      flex-direction: column-reverse;
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    .tools {
+      justify-content: flex-end;
+    }
+  }
+
+  /* Article List Styles */
+  .articles-section {
+    padding: 4rem 2rem;
+  }
+
+  .grid-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>
+

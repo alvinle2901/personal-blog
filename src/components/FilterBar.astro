@@ -1,0 +1,194 @@
+---
+/* src/components/FilterBar.astro */
+import { getCollection } from 'astro:content';
+import filterPublishedPosts from '../utilities/filterPublishedPosts';
+import { formatInTimeZone } from 'date-fns-tz';
+
+// Get all blog posts and extract unique categories
+const allPosts = await getCollection('blog');
+const publishedPosts = filterPublishedPosts(allPosts);
+
+// Extract unique categories from published posts
+const availableCategories = Array.from(new Set(
+  publishedPosts.flatMap(post => post.data.topics)
+)).sort();
+
+// Add "All posts" as the first option
+const categories = ["All posts", ...availableCategories];
+
+// Get active category from URL parameter
+const url = new URL(Astro.request.url);
+const categoryParam = url.searchParams.get('category') || "";
+const activeCategory = categoryParam ? categoryParam : "All posts";
+
+// Format date helper function
+const formatDate = (date: Date) => {
+  return formatInTimeZone(date, 'Etc/UTC', 'MMMM dd, yyyy');
+};
+
+// Map posts to article format for filtering
+const allArticles = publishedPosts.map(post => ({
+  category: post.data.topics.length > 0 ? post.data.topics[0] : 'Blog',
+  title: post.data.title,
+  date: formatDate(post.data.pubDate),
+  imageSrc: post.data.heroImage || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2070&auto=format&fit=crop"
+}));
+
+// Apply filtering based on active category
+const filteredArticles = activeCategory === "All posts"
+  ? allArticles
+  : allArticles.filter(article => article.category === activeCategory);
+---
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+<div class="filter-bar-container">
+  <div class="category-list">
+    {categories.map((cat) => (
+      <a
+        href={`?category=${encodeURIComponent(cat === "All posts" ? "" : cat)}`}
+        class:list={["filter-btn", { active: cat === activeCategory }]}
+      >
+        {cat}
+      </a>
+    ))}
+  </div>
+
+  <div class="tools">
+    <button class="icon-btn" aria-label="Search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </button>
+
+    <button class="sort-btn">
+      <span>Sort by</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<style>
+  /* Variables to match the theme */
+  :root {
+    --theme-text: #3E3029;
+    --theme-bg: #EADCD1;
+    --btn-border: #8C847F; /* Muted border color */
+    --btn-active-bg: #D4D8D5; /* The grey/greenish active fill from the image */
+  }
+
+  .filter-bar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 0;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--theme-text);
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* --- Categories (Left Side) --- */
+  .category-list {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto; /* Allows horizontal scroll on small screens */
+    white-space: nowrap; /* Prevents buttons from wrapping to next line */
+    padding-bottom: 0.5rem; /* Space for scrollbar if visible */
+    
+    /* Hide scrollbar for cleaner look */
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .category-list::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: 1px solid var(--theme-text);
+    border-radius: 50px;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+    color: var(--theme-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    opacity: 0.7; /* Inactive state is slightly faded */
+  }
+
+  /* Active State Styling */
+  .filter-btn.active {
+    background-color: var(--btn-active-bg);
+    opacity: 1;
+    border-color: var(--theme-text);
+    font-weight: 500;
+  }
+
+  .filter-btn:hover {
+    opacity: 1;
+    border-color: var(--theme-text);
+  }
+
+  /* --- Tools (Right Side) --- */
+  .tools {
+    display: flex;
+    gap: 0.75rem;
+    flex-shrink: 0; /* Prevents tools from squishing */
+  }
+
+  /* Shared styles for tool buttons */
+  .icon-btn, .sort-btn {
+    background: transparent;
+    border: 1px solid var(--theme-text); /* Using darker border to match image */
+    border-radius: 12px; /* Slightly squarer than the category pills */
+    color: var(--theme-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    opacity: 0.7;
+  }
+
+  .icon-btn:hover, .sort-btn:hover {
+    opacity: 1;
+    background-color: rgba(62, 48, 41, 0.05);
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .sort-btn {
+    height: 44px;
+    padding: 0 1.25rem;
+    border-radius: 14px;
+    gap: 2rem; /* Space between text and arrow, looking at the image */
+    font-size: 0.95rem;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .filter-bar-container {
+      flex-direction: column-reverse; /* Stack controls on top of categories on mobile? Or standard column */
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    .tools {
+      justify-content: flex-end;
+    }
+  }
+</style>
