@@ -28,14 +28,14 @@
     zoomControl: false,
     attributionControl: false,
     worldCopyJump: false,
-  }).setView([45, 0], 3);
+  }).setView([45, 50], 3.2);
 
   const bounds = L.latLngBounds([-60, -180], [85, 180]);
   map.setMaxBounds(bounds);
 
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-    { maxZoom: 5, noWrap: true }
+    { maxZoom: 5, minZoom: 2, noWrap: true }
   ).addTo(map);
 
   map.on("drag", () => map.panInsideBounds(bounds, { animate: false }));

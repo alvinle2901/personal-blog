@@ -1,38 +1,39 @@
 ---
-import BaseLayout from '@layouts/BaseLayout.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
 import { Image } from 'astro:assets';
-// import profilePic from "@assets/profile_pic_2.jpeg";
+import profilePic from "../../assets/profile_pic.jpeg";
+import DistanceMap from '../../components/DistanceMap.astro';
 ---
 
 <BaseLayout>
   <main class="wrapper">
-    <h1>About Me</h1>
     <div class="about sidebar" data-direction='rtl'>
-      <div class="about__text flow">
-        <p>
-          I'm a Staff Developer at StackAdapt working on the Developer Experience team, previously Shopify.
-        </p>
-        <p>
-          Primarily a backend dev, I've worked with Ruby, Typescript, and Golang.
-          Recently, I've started learning how to make apps pretty.
-        </p>
-        <p>
-          Building fun, silly, little side projects bring me ✨ joy ✨.
-        </p>
-        <p>
-          Outside of coding, I'm either walking my dog, Albie. Or bothering my cats, Indie & Nami,
-          while they're sleeping. I climb, play Ultimate, and pottery has become a recent obsession
-        </p>
-        <p>
-          Currently in Toronto, Canada. Originally from Australia 🇦🇺.
-        </p>
-        <p>
-          Shoot me an <a href="mailto:hey@jonathanyeong.com">email</a> or DM me on <a href="https://bsky.app/profile/jonathanyeong.com" rel="noopener noreferrer" target="_blank">Bluesky</a> to get in touch.
-        </p>
+      <div>
+    <h1>About Me</h1>
+    <div class="about__text flow">
+      <p>
+        Hey there, I’m Bach 👋  Welcome to my digital journal ✍🏼 I like building things, and I’m currently helping to build <a href="https://www.keepbook.ai/" target="_blank" class="cursor-alias rounded text-neutral-900 decoration-wavy underline-offset-4 decoration-sky-400 focus-visible:ring-4 focus-visible:ring-blue-200 focus:underline hover:underline">Keepbook</a>.
+      </p>
+      <p>
+        In my free time, I enjoy <a href="/topics/baking/">baking</a>, taking <a href="https://www.shot-by-alv.space/" target="_blank">photos</a>, and going for a hike.
+      </p>
+      <p>
+        I also do some <a href="/topics/books/">reading</a> and try some random <a href="/topics/recipes/">recipes</a> I found (mostly on Youtube) with my average cooking skills aha.
+      </p>
+      <p>
+        Currently in Göttingen, Germany. Originally from Vietnam 🇻🇳.
+      </p>
+    </div>
       </div>
+
       <div class="about__profile-pic">
-        <!-- <Image src={profilePic} alt="Jono Yeong's face. I'm smiling and wearing a hat, with a grey-blue t-shirt." /> -->
+        <Image src={profilePic} alt="" />
       </div>
+    </div>
+
+    <div class="random-container">
+      <DistanceMap />
+    </div>
   </main>
 </BaseLayout>
 
@@ -58,6 +59,7 @@ import { Image } from 'astro:assets';
 
   .about__profile-pic {
     --sidebar-target-width: 20rem;
+    margin-top: 3rem;
 
     img {
       max-width: var(--sidebar-target-width);
@@ -66,6 +68,11 @@ import { Image } from 'astro:assets';
   }
 
   .about__text {
+    font-size: var(--font-step-2);
     text-wrap: pretty;
+  }
+
+  .random-container {
+    margin-top: 2rem;
   }
 </style>
