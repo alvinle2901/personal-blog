@@ -9,7 +9,6 @@ import TopicList from '@components/TopicList.astro';
 
 import filterPublishedPosts from '@utilities/filterPublishedPosts';
 
-
 const posts = filterPublishedPosts(await getCollection('blog'))
 const topics = [...new Set(posts.flatMap((post) => post.data.topics))];
 const groupedPosts: Record<string, CollectionEntry<'blog'>[]>= posts.reduce((acc, post) => {
@@ -44,12 +43,9 @@ const sortedYears = Object.keys(groupedPosts).sort((a, b) => parseInt(b) - parse
         ))}
       </div>
     </div>
-
     <Newsletter />
   </main>
-
 </BaseLayout>
-
 
 <style>
   main {

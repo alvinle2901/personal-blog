@@ -1,0 +1,84 @@
+<div id="map"></div>
+
+<style is:global>
+  #map {
+    height: 78vh;
+    width: 100%;
+    max-width: 1400px;
+    border-radius: 12px;
+    margin-inline: auto;
+  }
+
+  /* Remove blue outline on focus for Leaflet vector layers */
+  path.leaflet-interactive:focus {
+    outline: none !important;
+  }
+</style>
+
+<script>
+  import L from "leaflet";
+
+  const VISITED_COUNTRIES = new Set([
+    "VNM","FI1","EST","SGP","NL1","FR1","AUT","POL","CZE",
+    "ALB","BGR","HRV","KOS","MNE","MKD","ROU","SVN",
+    "ITA","CHE","DEU","BEL","ESP","PRT","HUN","SVK"
+  ]);
+
+  const map = L.map("map", {
+    zoomControl: false,
+    attributionControl: false,
+    worldCopyJump: false,
+  }).setView([45, 0], 3);
+
+  const bounds = L.latLngBounds([-60, -180], [85, 180]);
+  map.setMaxBounds(bounds);
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+    { maxZoom: 5, noWrap: true }
+  ).addTo(map);
+
+  map.on("drag", () => map.panInsideBounds(bounds, { animate: false }));
+
+  fetch("/world1.geojson")
+  .then(res => res.json())
+  .then(data => {
+    // ... inside your fetch block ...
+
+L.geoJSON(data, {
+  interactive: true, // Keep true for hover
+  style: feature => {
+    const isVisited = VISITED_COUNTRIES.has(feature?.properties.sov_a3);
+    return {
+      fillColor: isVisited ? getComputedStyle(document.documentElement).getPropertyValue('--color-hero-bg').trim() : "#e5e5e5",
+      weight: 0.6,
+      color: "#888",
+      fillOpacity: 1,
+      // Change cursor to default to imply "not clickable"
+      cursor: "default", 
+    };
+  },
+  onEachFeature: (feature, layer) => {
+  const isVisited = VISITED_COUNTRIES.has(feature?.properties.sov_a3);
+
+  // 1. Prevent Focus/Click reaction (the blue outline)
+  layer.on({
+    mousedown: (e) => L.DomEvent.preventDefault(e.originalEvent),
+    click: (e) => L.DomEvent.stopPropagation(e.originalEvent)
+  });
+
+  // 2. Only apply Tooltips and Hover effects to visited countries
+  if (isVisited) {
+    // Show name on hover
+    layer.bindTooltip(feature.properties.name, { sticky: true });
+
+    // Change color on hover
+    const pathLayer = layer as L.Path;
+    pathLayer.on("mouseover", () => pathLayer.setStyle({ fillColor: getComputedStyle(document.documentElement).getPropertyValue('--color-light-accent').trim() }));
+    pathLayer.on("mouseout", () => pathLayer.setStyle({ fillColor: getComputedStyle(document.documentElement).getPropertyValue('--color-hero-bg').trim() }));
+  }
+  // Non-visited countries don't get hover effects or tooltips
+  }
+}).addTo(map);
+  });
+</script>
