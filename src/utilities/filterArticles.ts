@@ -3,6 +3,7 @@ export interface ArticleData {
   title: string;
   date: string;
   imageSrc: string;
+  slug: string;
 }
 
 export interface ArticleFilter {

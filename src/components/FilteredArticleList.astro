@@ -27,7 +27,8 @@ const allArticles = publishedPosts.map(post => ({
   category: post.data.topics.length > 0 ? post.data.topics[0] : 'Blog',
   title: post.data.title,
   date: formatDate(post.data.pubDate),
-  imageSrc: post.data.heroImage || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2070&auto=format&fit=crop"
+  imageSrc: post.data.heroImage || "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=2070&auto=format&fit=crop",
+  slug: post.slug
 }));
 
 // Get page parameters
@@ -95,6 +96,7 @@ const paginatedArticles = filteredArticles.slice(startIndex, endIndex);
           title={article.title}
           date={article.date}
           imageSrc={article.imageSrc}
+          slug={article.slug}
         />
       ))}
     </div>

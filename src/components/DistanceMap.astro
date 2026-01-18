@@ -1,13 +1,13 @@
 ---
 const from = {
   name: "Göttingen, Germany",
-  lat: 51.5413,
-  lng: 9.9158,
+  lat: 51.520733,
+  lng: 9.939794,
 };
 ---
 
 <div class="map-card">
-  <div id="map" class="map"></div>
+  <div id="map" class="map map-loading"></div>
 
   <p class="caption" id="caption">
     Calculating distance…
@@ -21,9 +21,11 @@ const from = {
   mapboxgl.accessToken = import.meta.env.PUBLIC_MAPBOX_TOKEN;
 
   const from = {
-    lat: 51.5413,
-    lng: 9.9158,
+    lat: 51.520733,
+    lng: 9.939794,
   };
+
+  let mapInitialized = false;
 
   function haversineDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
@@ -51,66 +53,100 @@ const from = {
     };
   }
 
-  const map = new mapboxgl.Map({
-    container: "map",
-    style: "mapbox://styles/mapbox/light-v11",
-    projection: "globe",
-    center: [0, 20],
-    zoom: 0.8,
-  });
+  function initializeMap() {
+    if (mapInitialized) return;
+    mapInitialized = true;
 
-  map.on("load", async () => {
-    const user = await getUserLocation();
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: "mapbox://styles/mapbox/light-v11",
+      projection: "globe",
+      center: [0, 20],
+      zoom: 0.8,
+    });
 
-    const distance = haversineDistance(
-      from.lat,
-      from.lng,
-      user.lat,
-      user.lng
-    ).toFixed(0);
-
-    const captionElement = document.getElementById("caption");
-    if (captionElement) {
-      captionElement.innerHTML = `
-        I’m currently in Göttingen, Germany, roughly
-        <strong>${distance} km</strong> away from your location
-        (${user.city}, ${user.country}).
-      `;
+    // Remove loading class
+    const mapElement = document.getElementById("map");
+    if (mapElement) {
+      mapElement.classList.remove("map-loading");
     }
 
-    // Map bounds
-  const minLng = Math.min(from.lng, user.lng);
-  const maxLng = Math.max(from.lng, user.lng);
-  const minLat = Math.min(from.lat, user.lat);
-  const maxLat = Math.max(from.lat, user.lat);
+    map.on("load", async () => {
+      const user = await getUserLocation();
 
-  const mapEl = document.getElementById("map");
-  const mapWidth = mapEl.clientWidth;
-  const mapHeight = mapEl.clientHeight;
+      const distance = haversineDistance(
+        from.lat,
+        from.lng,
+        user.lat,
+        user.lng
+      ).toFixed(0);
 
-  const tileSize = 512;
-  const paddingFactor = 0.85; // <-- reduce zoom slightly to leave padding
+      const captionElement = document.getElementById("caption");
+      if (captionElement) {
+        captionElement.innerHTML = `
+          I’m currently in Göttingen, Germany, roughly
+          <strong>${distance} km</strong> away from your location
+          (${user.city}, ${user.country}).
+        `;
+      }
 
-  // Calculate zoom for width and height
-const zoomLng = Math.log2((mapWidth * 360) / (tileSize * (maxLng - minLng))) * paddingFactor;
-  const zoomLat = Math.log2((mapHeight * 360) / (tileSize * (maxLat - minLat))) * paddingFactor;
+      // Map bounds
+      const minLng = Math.min(from.lng, user.lng);
+      const maxLng = Math.max(from.lng, user.lng);
+      const minLat = Math.min(from.lat, user.lat);
+      const maxLat = Math.max(from.lat, user.lat);
 
-  const zoom = Math.min(zoomLng, zoomLat, 20); // max zoom 20
+      const mapEl = document.getElementById("map");
+      if (!mapEl) return;
 
-  // Center between points
-  const center = [(from.lng + user.lng) / 2, (from.lat + user.lat) / 2];
+      const mapWidth = mapEl.clientWidth;
+      const mapHeight = mapEl.clientHeight;
 
-  map.easeTo({
-    center,
-    zoom,
-    duration: 1400,
-    easing: (t) => t,
-  });
+      const tileSize = 512;
+      const paddingFactor = 0.85;
 
-  map.once("moveend", () => {
-    addRouteAndMarkers(map, from, user);
-  });
+      const zoomLng = Math.log2((mapWidth * 360) / (tileSize * (maxLng - minLng))) * paddingFactor;
+      const zoomLat = Math.log2((mapHeight * 360) / (tileSize * (maxLat - minLat))) * paddingFactor;
 
+      const zoom = Math.min(zoomLng, zoomLat, 20);
+
+      const center: [number, number] = [(from.lng + user.lng) / 2, (from.lat + user.lat) / 2];
+
+      map.easeTo({
+        center,
+        zoom,
+        duration: 3500,
+        easing: (t) => 1 - Math.pow(1 - t, 4), // Cubic ease-out: fast start, slow finish
+      });
+
+      map.once("moveend", () => {
+        addRouteAndMarkers(map, from, user);
+      });
+    });
+  }
+
+  // Set up intersection observer for lazy loading
+  document.addEventListener('DOMContentLoaded', () => {
+    const mapCard = document.querySelector('.map-card');
+
+    if (!mapCard) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            initializeMap();
+            observer.disconnect(); // Only load once
+          }
+        });
+      },
+      {
+        rootMargin: '0px', // No margin - trigger exactly when element enters viewport
+        threshold: 1.0, // Trigger only when 100% of the element is visible
+      }
+    );
+
+    observer.observe(mapCard);
   });
 </script>
 
@@ -127,6 +163,24 @@ const zoomLng = Math.log2((mapWidth * 360) / (tileSize * (maxLng - minLng))) * p
   height: 300px;
   border-radius: 12px;
   overflow: hidden;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+.map-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .caption {
