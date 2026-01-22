@@ -42,15 +42,56 @@ const from = {
   }
 
   async function getUserLocation() {
-    const res = await fetch("https://ipapi.co/json/");
-    const data = await res.json();
+    try {
+      console.log('Attempting IP-based geolocation...');
 
-    return {
-      lat: data.latitude,
-      lng: data.longitude,
-      city: data.city,
-      country: data.country_name,
-    };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const res = await fetch("/api/geo", {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      console.log('IP-based location API response:', data);
+
+      // Validate the response data
+      if (!data.latitude || !data.longitude) {
+        throw new Error('Invalid location data: missing coordinates');
+      }
+
+      // Parse coordinates to ensure they're numbers
+      const lat = parseFloat(data.latitude);
+      const lng = parseFloat(data.longitude);
+
+      if (isNaN(lat) || isNaN(lng)) {
+        throw new Error('Invalid location data: coordinates are not valid numbers');
+      }
+
+      // Check if coordinates are reasonable (not 0,0 which indicates failure)
+      if (lat === 0 && lng === 0) {
+        throw new Error('Invalid location data: coordinates are 0,0');
+      }
+
+      return {
+        lat: lat,
+        lng: lng,
+        city: data.city || 'Unknown City',
+        country: data.country || 'Unknown Country',
+      };
+    } catch (error) {
+      console.error('IP-based geolocation failed:', error);
+      return null;
+    }
   }
 
   function initializeMap() {
@@ -72,56 +113,94 @@ const from = {
     }
 
     map.on("load", async () => {
-      const user = await getUserLocation();
+      try {
+        const user = await getUserLocation();
 
-      const distance = haversineDistance(
-        from.lat,
-        from.lng,
-        user.lat,
-        user.lng
-      ).toFixed(0);
+        if (!user) {
+          console.warn('Failed to get user location, using fallback display');
+          const captionElement = document.getElementById("caption");
+          if (captionElement) {
+            captionElement.innerHTML = `
+              I’m currently in Göttingen, Germany.
+              <br><small style="color: #64748b;">(Unable to determine your location)</small>
+            `;
+          }
 
-      const captionElement = document.getElementById("caption");
-      if (captionElement) {
-        captionElement.innerHTML = `
-          I’m currently in Göttingen, Germany, roughly
-          <strong>${distance} km</strong> away from your location
-          (${user.city}, ${user.country}).
-        `;
+          // Still show the map centered on Göttingen with a default zoom
+          map.easeTo({
+            center: [from.lng, from.lat],
+            zoom: 8,
+            duration: 3500,
+            easing: (t) => 1 - Math.pow(1 - t, 4),
+          });
+
+          map.once("moveend", () => {
+            // Add marker for Göttingen only
+            addRouteAndMarkers(map, from, null);
+          });
+          return;
+        }
+
+        console.log('User location:', user);
+
+        const distance = haversineDistance(
+          from.lat,
+          from.lng,
+          user.lat,
+          user.lng
+        ).toFixed(0);
+
+        const captionElement = document.getElementById("caption");
+        if (captionElement) {
+          captionElement.innerHTML = `
+            I’m currently in Göttingen, Germany, roughly
+            <strong>${distance} km</strong> away from your location
+            (${user.city}, ${user.country}).
+          `;
+        }
+
+        // Map bounds
+        const minLng = Math.min(from.lng, user.lng);
+        const maxLng = Math.max(from.lng, user.lng);
+        const minLat = Math.min(from.lat, user.lat);
+        const maxLat = Math.max(from.lat, user.lat);
+
+        const mapEl = document.getElementById("map");
+        if (!mapEl) return;
+
+        const mapWidth = mapEl.clientWidth;
+        const mapHeight = mapEl.clientHeight;
+
+        const tileSize = 512;
+        const paddingFactor = 0.85;
+
+        const zoomLng = Math.log2((mapWidth * 360) / (tileSize * (maxLng - minLng))) * paddingFactor;
+        const zoomLat = Math.log2((mapHeight * 360) / (tileSize * (maxLat - minLat))) * paddingFactor;
+
+        const zoom = Math.min(zoomLng, zoomLat, 20);
+
+        const center: [number, number] = [(from.lng + user.lng) / 2, (from.lat + user.lat) / 2];
+
+        map.easeTo({
+          center,
+          zoom,
+          duration: 3500,
+          easing: (t) => 1 - Math.pow(1 - t, 4), // Cubic ease-out: fast start, slow finish
+        });
+
+        map.once("moveend", () => {
+          addRouteAndMarkers(map, from, user);
+        });
+      } catch (error) {
+        console.error('Error in map load handler:', error);
+        const captionElement = document.getElementById("caption");
+        if (captionElement) {
+          captionElement.innerHTML = `
+            I’m currently in Göttingen, Germany.
+            <br><small style="color: #dc2626;">(Error loading location data)</small>
+          `;
+        }
       }
-
-      // Map bounds
-      const minLng = Math.min(from.lng, user.lng);
-      const maxLng = Math.max(from.lng, user.lng);
-      const minLat = Math.min(from.lat, user.lat);
-      const maxLat = Math.max(from.lat, user.lat);
-
-      const mapEl = document.getElementById("map");
-      if (!mapEl) return;
-
-      const mapWidth = mapEl.clientWidth;
-      const mapHeight = mapEl.clientHeight;
-
-      const tileSize = 512;
-      const paddingFactor = 0.85;
-
-      const zoomLng = Math.log2((mapWidth * 360) / (tileSize * (maxLng - minLng))) * paddingFactor;
-      const zoomLat = Math.log2((mapHeight * 360) / (tileSize * (maxLat - minLat))) * paddingFactor;
-
-      const zoom = Math.min(zoomLng, zoomLat, 20);
-
-      const center: [number, number] = [(from.lng + user.lng) / 2, (from.lat + user.lat) / 2];
-
-      map.easeTo({
-        center,
-        zoom,
-        duration: 3500,
-        easing: (t) => 1 - Math.pow(1 - t, 4), // Cubic ease-out: fast start, slow finish
-      });
-
-      map.once("moveend", () => {
-        addRouteAndMarkers(map, from, user);
-      });
     });
   }
 
