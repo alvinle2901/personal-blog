@@ -48,30 +48,16 @@ const from = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-      const res = await fetch("/api/geo", {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
+      const res = await fetch("https://geoapi.info/api/geo");
       const data = await res.json();
-      console.log('IP-based location API response:', data);
+      console.log(data)
 
-      // Validate the response data
-      if (!data.latitude || !data.longitude) {
-        throw new Error('Invalid location data: missing coordinates');
-      }
+      const latitude = data.location.coordinates.latitude;
+      const longitude = data.location.coordinates.longitude;
 
       // Parse coordinates to ensure they're numbers
-      const lat = parseFloat(data.latitude);
-      const lng = parseFloat(data.longitude);
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
 
       if (isNaN(lat) || isNaN(lng)) {
         throw new Error('Invalid location data: coordinates are not valid numbers');
@@ -85,8 +71,8 @@ const from = {
       return {
         lat: lat,
         lng: lng,
-        city: data.city || 'Unknown City',
-        country: data.country_name || 'Unknown Country',
+        city: data.location.city || 'Unknown City',
+        country: data.location.countryName || 'Unknown Country',
       };
     } catch (error) {
       console.error('IP-based geolocation failed:', error);
