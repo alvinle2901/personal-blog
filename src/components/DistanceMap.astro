@@ -86,7 +86,7 @@ const from = {
         lat: lat,
         lng: lng,
         city: data.city || 'Unknown City',
-        country: data.country || 'Unknown Country',
+        country: data.country_name || 'Unknown Country',
       };
     } catch (error) {
       console.error('IP-based geolocation failed:', error);
