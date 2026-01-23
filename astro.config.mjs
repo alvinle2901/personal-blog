@@ -8,7 +8,7 @@ import rehypeExternalLinks from 'rehype-external-links'
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.123.com',
+  site: 'https://quiet-pithivier-77760c.netlify.app',
   integrations: [mdx(), sitemap(), icon()],
   markdown: {
     drafts: false,
