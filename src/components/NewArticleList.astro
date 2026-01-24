@@ -9,11 +9,6 @@ interface Props {
 const { articles } = Astro.props;
 ---
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,300;600&display=swap" rel="stylesheet">
-
-
 <section class="articles-section">
   <div class="grid-container">
     {articles.map(article => (
