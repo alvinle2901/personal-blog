@@ -35,7 +35,7 @@
 
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-    { maxZoom: 5, minZoom: 2, noWrap: true }
+    { maxZoom: 8, minZoom: 2, noWrap: true }
   ).addTo(map);
 
   map.on("drag", () => map.panInsideBounds(bounds, { animate: false }));
